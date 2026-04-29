@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>保健箱月檢查記錄</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --red: #C0392B;
+    --red-light: #FADBD8;
+    --green: #1E8449;
+    --green-light: #D5F5E3;
+    --gray-50: #F8F9FA;
+    --gray-100: #F1F3F5;
+    --gray-200: #E9ECEF;
+    --gray-400: #ADB5BD;
+    --gray-600: #6C757D;
+    --gray-800: #343A40;
+    --gray-900: #212529;
+    --border: #DEE2E6;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans TC', sans-serif;
+    background: #F0F2F5;
+    color: var(--gray-900);
+    min-height: 100vh;
+    padding: 0 0 60px;
+  }
+
+  /* Header */
+  .site-header {
+    background: var(--red);
+    color: white;
+    padding: 20px 24px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(192,57,43,0.3);
+  }
+  .site-header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+  .site-header .subtitle {
+    font-size: 12px;
+    opacity: 0.8;
+    margin-top: 2px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .container { max-width: 800px; margin: 0 auto; padding: 24px 16px; }
+
+  /* Card */
+  .card {
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .card-header .step-badge {
+    width: 26px; height: 26px;
+    background: var(--red);
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .card-header h2 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--gray-800);
+  }
+  .card-body { padding: 20px; }
+
+  /* Form controls */
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray-600);
+    margin-bottom: 6px;
+  }
+  label .req { color: var(--red); margin-left: 2px; }
+
+  select, input[type="date"], input[type="text"] {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-family: 'Noto Sans TC', sans-serif;
+    color: var(--gray-900);
+    background: white;
+    transition: border-color 0.15s;
+    appearance: none;
+  }
+  select:focus, input:focus {
+    outline: none;
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(192,57,43,0.1);
+  }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 500px) { .form-row { grid-template-columns: 1fr; } }
+
+  /* 品項檢查表 */
+  .items-table { width: 100%; border-collapse: collapse; }
+  .items-table th {
+    background: var(--gray-800);
+    color: white;
+    padding: 10px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    text-align: left;
+  }
+  .items-table th:nth-child(1) { width: 36px; text-align: center; }
+  .items-table th:nth-child(3) { width: 110px; text-align: center; }
+  .items-table tr:nth-child(even) td { background: var(--gray-50); }
+  .items-table td { padding: 12px; border-bottom: 1px solid var(--gray-200); vertical-align: top; }
+  .items-table td:nth-child(1) { text-align: center; font-family: 'DM Mono', monospace; font-size: 13px; color: var(--gray-600); }
+
+  .item-name { font-size: 14px; font-weight: 500; }
+  .item-qty { font-size: 12px; color: var(--gray-600); margin-top: 2px; }
+
+  /* 正常/異常 toggle */
+  .result-toggle { display: flex; gap: 0; border-radius: 6px; overflow: hidden; border: 1.5px solid var(--border); }
+  .result-toggle input { display: none; }
+  .result-toggle label {
+    flex: 1; margin: 0; padding: 8px 10px;
+    text-align: center; cursor: pointer;
+    font-size: 14px; font-weight: 700;
+    background: white;
+    transition: background 0.15s, color 0.15s;
+    border-right: 1px solid var(--border);
+  }
+  .result-toggle label:last-child { border-right: none; }
+  .result-toggle input[value="normal"]:checked + label { background: var(--green); color: white; border-color: var(--green); }
+  .result-toggle input[value="abnormal"]:checked + label { background: var(--red); color: white; border-color: var(--red); }
+
+  /* 異常展開區 */
+  .abnormal-detail {
+    display: none;
+    margin-top: 10px;
+    padding: 12px;
+    background: var(--red-light);
+    border-radius: 6px;
+    border-left: 3px solid var(--red);
+  }
+  .abnormal-detail.show { display: block; }
+  .abnormal-detail input, .abnormal-detail textarea {
+    margin-top: 6px;
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+  .abnormal-detail textarea {
+    width: 100%;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    resize: vertical;
+    min-height: 60px;
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+  .abnormal-detail label { color: var(--red); font-size: 12px; margin-top: 8px; }
+  .abnormal-detail label:first-child { margin-top: 0; }
+
+  /* 電子簽名 */
+  .sig-wrapper {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--gray-50);
+    position: relative;
+    overflow: hidden;
+  }
+  #sig-canvas {
+    display: block;
+    width: 100%;
+    height: 160px;
+    cursor: crosshair;
+    touch-action: none;
+  }
+  .sig-hint {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--gray-400);
+    font-size: 13px;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    text-align: center;
+    line-height: 1.6;
+  }
+  .sig-actions {
+    display: flex; gap: 8px; margin-top: 8px;
+  }
+  .btn-clear {
+    padding: 6px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--gray-600);
+    font-family: 'Noto Sans TC', sans-serif;
+  }
+  .btn-clear:hover { background: var(--gray-100); }
+
+  /* 提交按鈕 */
+  .btn-submit {
+    width: 100%;
+    padding: 16px;
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 17px;
+    font-weight: 700;
+    font-family: 'Noto Sans TC', sans-serif;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: background 0.15s, transform 0.1s;
+    margin-top: 8px;
+  }
+  .btn-submit:hover { background: #A93226; }
+  .btn-submit:active { transform: scale(0.98); }
+  .btn-submit:disabled { background: var(--gray-400); cursor: not-allowed; }
+
+  /* 時間戳記顯示 */
+  .timestamp-bar {
+    background: var(--gray-800);
+    color: var(--gray-400);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 8px 20px;
+    text-align: right;
+    letter-spacing: 0.5px;
+  }
+
+  /* 成功/錯誤訊息 */
+  .alert {
+    padding: 14px 20px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .alert.success { background: var(--green-light); color: var(--green); border: 1px solid #A9DFBF; display: block; }
+  .alert.error { background: var(--red-light); color: var(--red); border: 1px solid #F1948A; display: block; }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Loading skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 4px;
+    height: 20px;
+    margin: 8px 0;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+</style>
+</head>
+<body>
+
+<div class="site-header">
+  <h1>保健箱月檢查記錄</h1>
+  <div class="subtitle" id="live-time">載入中...</div>
+</div>
+
+<div class="container">
+  <div id="alert-box" class="alert"></div>
+
+  <form id="inspection-form" novalidate>
+
+    <!-- STEP 1: 基本資訊 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge">1</div>
+        <h2>基本資訊</h2>
+      </div>
+      <div class="card-body">
+        <div class="form-row">
+          <div>
+            <label for="box-select">保健箱地點 <span class="req">*</span></label>
+            <select id="box-select" required>
+              <option value="">── 請選擇 ──</option>
+            </select>
+          </div>
+          <div>
+            <label for="inspection-date">檢查日期 <span class="req">*</span></label>
+            <input type="date" id="inspection-date" required>
+          </div>
+        </div>
+      </div>
+      <div class="timestamp-bar" id="ts-display">填寫時間將自動記錄</div>
+    </div>
+
+    <!-- STEP 2: 品項檢查 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge">2</div>
+        <h2>品項檢查　<span style="font-size:12px;font-weight:400;color:var(--gray-600)">正常請選 ✔ 正常，異常請選 ✘ 異常並填寫說明</span></h2>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="items-loading" style="padding:20px">
+          <div class="skeleton" style="width:60%"></div>
+          <div class="skeleton" style="width:80%"></div>
+          <div class="skeleton" style="width:50%"></div>
+        </div>
+        <table class="items-table" id="items-table" style="display:none">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>名稱 / 基本數量</th>
+              <th>檢查結果</th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- STEP 3: 電子簽名 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge">3</div>
+        <h2>電子簽名 <span style="font-size:12px;font-weight:400;color:var(--gray-600)">（檢查人於下方簽名）</span></h2>
+      </div>
+      <div class="card-body">
+        <div class="sig-wrapper">
+          <canvas id="sig-canvas" width="760" height="160"></canvas>
+          <div class="sig-hint" id="sig-hint">請在此處簽名<br><span style="font-size:11px">支援滑鼠或觸控筆</span></div>
+        </div>
+        <div class="sig-actions">
+          <button type="button" class="btn-clear" onclick="clearSig()">清除重簽</button>
+          <span id="sig-status" style="font-size:12px;color:var(--gray-400);padding:6px 0;margin-left:4px"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4: 備註 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="step-badge">4</div>
+        <h2>備註 <span style="font-size:12px;font-weight:400;color:var(--gray-600)">（選填）</span></h2>
+      </div>
+      <div class="card-body">
+        <textarea id="notes" style="width:100%;border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:14px;font-family:'Noto Sans TC',sans-serif;resize:vertical;min-height:80px;color:var(--gray-900)" placeholder="本次檢查備註、物品補充說明等..."></textarea>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-submit" id="submit-btn">確認送出檢查記錄</button>
+
+  </form>
+</div>
+
+<script>
+// ============================================================
+// 設定：請填入您的 Supabase 資訊
+// ============================================================
+const SUPABASE_URL = 'https://zxeqkfjydtsuzcfudfla.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_2VzPxIRYzBnk5Ebx8SaYzA_y5PjWxeh';
+
+// ============================================================
+// API 輔助
+// ============================================================
+async function supaFetch(path, opts = {}) {
+  const url = SUPABASE_URL + '/rest/v1/' + path;
+  const res = await fetch(url, {
+    ...opts,
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...(opts.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || '伺服器錯誤 ' + res.status);
+  }
+  return res.json().catch(() => null);
+}
+
+// ============================================================
+// 即時時鐘
+// ============================================================
+function updateClock() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('live-time').textContent =
+    `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ` +
+    `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())} (填寫時間自動記錄)`;
+  document.getElementById('ts-display').textContent =
+    `本次填寫時間：${now.toLocaleString('zh-TW')}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// 設定今天日期為預設
+const today = new Date();
+const pad2 = n => String(n).padStart(2, '0');
+document.getElementById('inspection-date').value =
+  `${today.getFullYear()}-${pad2(today.getMonth()+1)}-${pad2(today.getDate())}`;
+
+// ============================================================
+// 載入保健箱列表
+// ============================================================
+async function loadBoxes() {
+  try {
+    const boxes = await supaFetch('boxes?is_active=eq.true&order=name');
+    const sel = document.getElementById('box-select');
+    boxes.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.name + (b.location ? ` (${b.location})` : '');
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    showAlert('無法載入保健箱資料：' + e.message, 'error');
+  }
+}
+
+// ============================================================
+// 載入品項列表（依選擇的保健箱）
+// ============================================================
+let currentItems = [];
+
+async function loadItems(boxId) {
+  if (!boxId) return;
+  document.getElementById('items-loading').style.display = 'block';
+  document.getElementById('items-table').style.display = 'none';
+
+  try {
+    const items = await supaFetch(`items?box_id=eq.${boxId}&is_active=eq.true&order=sort_order`);
+    currentItems = items;
+    renderItems(items);
+  } catch (e) {
+    showAlert('無法載入品項：' + e.message, 'error');
+  }
+}
+
+function renderItems(items) {
+  const tbody = document.getElementById('items-tbody');
+  tbody.innerHTML = '';
+
+  items.forEach((item, idx) => {
+    const rowId = `item-${item.id}`;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${item.item_no}</td>
+      <td>
+        <div class="item-name">${escHtml(item.name)}</div>
+        <div class="item-qty">${escHtml(item.base_quantity)}</div>
+        ${item.expiry_date ? `<div style="font-size:11px;color:var(--gray-400);margin-top:2px">有效期：${item.expiry_date}</div>` : ''}
+      </td>
+      <td>
+        <div class="result-toggle">
+          <input type="radio" name="${rowId}" id="${rowId}-n" value="normal" checked>
+          <label for="${rowId}-n">✔ 正常</label>
+          <input type="radio" name="${rowId}" id="${rowId}-a" value="abnormal">
+          <label for="${rowId}-a">✘ 異常</label>
+        </div>
+        <div class="abnormal-detail" id="detail-${item.id}">
+          <label>實際數量</label>
+          <input type="text" placeholder="填寫實際數量" data-field="qty" style="width:100%">
+          <label>更換/補充品項名稱</label>
+          <input type="text" placeholder="填寫更新品項" data-field="updated_item" style="width:100%">
+          <label>新有效期限</label>
+          <input type="date" data-field="new_expiry" style="width:100%">
+          <label>異常說明</label>
+          <textarea placeholder="說明異常情況" data-field="notes"></textarea>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    // 監聽異常切換
+    tr.querySelectorAll(`input[name="${rowId}"]`).forEach(radio => {
+      radio.addEventListener('change', () => {
+        const detail = document.getElementById(`detail-${item.id}`);
+        detail.classList.toggle('show', radio.value === 'abnormal');
+      });
+    });
+  });
+
+  document.getElementById('items-loading').style.display = 'none';
+  document.getElementById('items-table').style.display = 'table';
+}
+
+document.getElementById('box-select').addEventListener('change', e => {
+  loadItems(e.target.value);
+});
+
+// ============================================================
+// 電子簽名
+// ============================================================
+const canvas = document.getElementById('sig-canvas');
+const ctx = canvas.getContext('2d');
+let signing = false;
+let hasSig = false;
+
+function getPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const src = e.touches ? e.touches[0] : e;
+  return { x: (src.clientX - rect.left) * scaleX, y: (src.clientY - rect.top) * scaleY };
+}
+
+ctx.strokeStyle = '#1a1a1a';
+ctx.lineWidth = 2.5;
+ctx.lineCap = 'round';
+ctx.lineJoin = 'round';
+
+function startSign(e) {
+  e.preventDefault();
+  signing = true;
+  const p = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  document.getElementById('sig-hint').style.opacity = '0';
+}
+function doSign(e) {
+  if (!signing) return;
+  e.preventDefault();
+  const p = getPos(e);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+  hasSig = true;
+  document.getElementById('sig-status').textContent = '已簽名';
+  document.getElementById('sig-status').style.color = 'var(--green)';
+}
+function endSign() { signing = false; }
+
+canvas.addEventListener('mousedown', startSign);
+canvas.addEventListener('mousemove', doSign);
+canvas.addEventListener('mouseup', endSign);
+canvas.addEventListener('mouseleave', endSign);
+canvas.addEventListener('touchstart', startSign, { passive: false });
+canvas.addEventListener('touchmove', doSign, { passive: false });
+canvas.addEventListener('touchend', endSign);
+
+function clearSig() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  hasSig = false;
+  document.getElementById('sig-hint').style.opacity = '1';
+  document.getElementById('sig-status').textContent = '';
+}
+
+// ============================================================
+// 表單提交
+// ============================================================
+document.getElementById('inspection-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  hideAlert();
+
+  const boxId = document.getElementById('box-select').value;
+  const inspDate = document.getElementById('inspection-date').value;
+
+  // 驗證
+  if (!boxId) { showAlert('請選擇保健箱地點', 'error'); return; }
+  if (!inspDate) { showAlert('請選擇檢查日期', 'error'); return; }
+  if (!hasSig) { showAlert('請在簽名欄位完成電子簽名', 'error'); return; }
+  if (currentItems.length === 0) { showAlert('尚未載入品項，請先選擇保健箱', 'error'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>送出中...';
+
+  try {
+    const sigData = canvas.toDataURL('image/png');
+    const submittedAt = new Date().toISOString();
+
+    // 建立檢查主記錄
+    const [inspection] = await supaFetch('inspections', {
+      method: 'POST',
+      body: JSON.stringify({
+        box_id: boxId,
+        inspection_date: inspDate,
+        signature_data: sigData,
+        notes: document.getElementById('notes').value || null,
+        submitted_at: submittedAt
+      })
+    });
+
+    // 建立品項明細
+    const itemRecords = currentItems.map(item => {
+      const rowId = `item-${item.id}`;
+      const result = document.querySelector(`input[name="${rowId}"]:checked`)?.value || 'normal';
+      const detail = document.getElementById(`detail-${item.id}`);
+
+      const rec = {
+        inspection_id: inspection.id,
+        item_id: item.id,
+        item_name: item.name,
+        result
+      };
+
+      if (result === 'abnormal' && detail) {
+        rec.actual_quantity = detail.querySelector('[data-field="qty"]')?.value || null;
+        rec.updated_item = detail.querySelector('[data-field="updated_item"]')?.value || null;
+        const expiryVal = detail.querySelector('[data-field="new_expiry"]')?.value;
+        rec.new_expiry_date = expiryVal || null;
+        rec.abnormal_notes = detail.querySelector('[data-field="notes"]')?.value || null;
+      }
+      return rec;
+    });
+
+    await supaFetch('inspection_items', {
+      method: 'POST',
+      body: JSON.stringify(itemRecords),
+      prefer: 'return=minimal'
+    });
+
+    // 成功
+    showAlert('✅ 檢查記錄已成功儲存！（' + new Date().toLocaleString('zh-TW') + '）', 'success');
+    document.getElementById('inspection-form').reset();
+    clearSig();
+    currentItems = [];
+    document.getElementById('items-tbody').innerHTML = '';
+    document.getElementById('items-table').style.display = 'none';
+    document.getElementById('inspection-date').value =
+      `${today.getFullYear()}-${pad2(today.getMonth()+1)}-${pad2(today.getDate())}`;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  } catch (err) {
+    showAlert('送出失敗：' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '確認送出檢查記錄';
+  }
+});
+
+// ============================================================
+// 工具函式
+// ============================================================
+function showAlert(msg, type) {
+  const el = document.getElementById('alert-box');
+  el.textContent = msg;
+  el.className = 'alert ' + type;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function hideAlert() {
+  document.getElementById('alert-box').className = 'alert';
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 初始化
+loadBoxes();
+</script>
+</body>
+</html>

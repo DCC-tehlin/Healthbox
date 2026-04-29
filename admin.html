@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>保健箱管理後台</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --primary: #1a2332;
+    --accent: #C0392B;
+    --accent2: #2980B9;
+    --green: #1E8449;
+    --border: #E2E8F0;
+    --bg: #F7F8FA;
+    --card: #FFFFFF;
+    --text: #1a2332;
+    --muted: #64748B;
+    --danger-bg: #FEF2F2;
+    --success-bg: #F0FDF4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ── 登入畫面 ── */
+  #login-screen {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--primary);
+  }
+  .login-box {
+    background: white; border-radius: 12px;
+    padding: 40px; width: 360px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .login-box h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .login-box p { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+  .login-box label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 5px; }
+  .login-box input {
+    width: 100%; padding: 10px 14px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 15px; margin-bottom: 16px;
+    font-family: 'DM Mono', monospace;
+  }
+  .login-box input:focus { outline: none; border-color: var(--accent2); }
+  .btn-login {
+    width: 100%; padding: 12px;
+    background: var(--primary); color: white;
+    border: none; border-radius: 8px;
+    font-size: 15px; font-weight: 700;
+    font-family: 'Noto Sans TC', sans-serif;
+    cursor: pointer; letter-spacing: 1px;
+  }
+  .btn-login:hover { background: #263448; }
+  #login-error { color: var(--accent); font-size: 13px; margin-top: 10px; display: none; }
+
+  /* ── 後台主體 ── */
+  #admin-screen { display: none; }
+
+  .topbar {
+    background: var(--primary); color: white;
+    padding: 0 24px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 200;
+  }
+  .topbar-brand { font-weight: 700; font-size: 16px; letter-spacing: 1px; }
+  .topbar-right { display: flex; align-items: center; gap: 20px; }
+  .topbar-user { font-size: 13px; opacity: 0.7; }
+  .btn-logout { background: none; border: 1px solid rgba(255,255,255,0.3); color: white; padding: 5px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; }
+  .btn-logout:hover { background: rgba(255,255,255,0.1); }
+
+  .layout { display: flex; min-height: calc(100vh - 56px); }
+
+  /* 側邊選單 */
+  .sidebar {
+    width: 200px; background: white;
+    border-right: 1px solid var(--border);
+    padding: 16px 0; flex-shrink: 0;
+  }
+  .nav-item {
+    display: block; padding: 11px 20px;
+    font-size: 14px; color: var(--muted);
+    cursor: pointer; border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .nav-item:hover { background: var(--bg); color: var(--text); }
+  .nav-item.active { color: var(--accent); font-weight: 700; border-left-color: var(--accent); background: #FEF2F2; }
+  .nav-section { padding: 16px 20px 6px; font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; }
+
+  /* 主內容 */
+  .main-content { flex: 1; padding: 24px; overflow-y: auto; }
+
+  /* Tab 頁面 */
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+
+  .page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+
+  /* 卡片 */
+  .card {
+    background: var(--card); border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+  }
+  .card-head {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-head h3 { font-size: 15px; font-weight: 700; }
+  .card-body { padding: 20px; }
+
+  /* 統計數字 */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .stat-num { font-size: 32px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--primary); }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* 表格 */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .data-table th { background: var(--bg); padding: 10px 12px; text-align: left; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .data-table td { padding: 12px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--bg); }
+
+  /* 狀態 badge */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .badge-green { background: var(--success-bg); color: var(--green); }
+  .badge-red { background: var(--danger-bg); color: var(--accent); }
+  .badge-gray { background: var(--bg); color: var(--muted); }
+
+  /* 簽名縮圖 */
+  .sig-thumb { height: 40px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
+
+  /* 按鈕 */
+  .btn { padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans TC', sans-serif; border: none; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: #263448; }
+  .btn-danger { background: var(--accent); color: white; }
+  .btn-danger:hover { background: #A93226; }
+  .btn-outline { background: white; color: var(--text); border: 1.5px solid var(--border); }
+  .btn-outline:hover { background: var(--bg); }
+  .btn-green { background: var(--green); color: white; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* 表單 */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 9px 12px;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    font-size: 14px; font-family: 'Noto Sans TC', sans-serif; color: var(--text);
+  }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent2); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* 匯入區 */
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 40px 20px; text-align: center; cursor: pointer;
+    transition: all 0.2s; background: var(--bg);
+  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent2); background: #EFF6FF; }
+  .drop-zone-icon { font-size: 40px; margin-bottom: 12px; }
+  .drop-zone p { color: var(--muted); font-size: 14px; }
+  #csv-preview { margin-top: 16px; }
+
+  /* Alert */
+  .alert { padding: 12px 16px; border-radius: 7px; font-size: 13px; margin-bottom: 16px; display: none; }
+  .alert.show { display: block; }
+  .alert-success { background: var(--success-bg); color: var(--green); }
+  .alert-error { background: var(--danger-bg); color: var(--accent); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: none; align-items: center; justify-content: center; z-index: 1000;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 12px; width: 90%; max-width: 460px; max-height: 90vh; overflow-y: auto; }
+  .modal-head { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-head h3 { font-size: 17px; font-weight: 700; }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--muted); padding: 0 4px; }
+  .modal-body { padding: 20px 24px; }
+  .modal-foot { padding: 14px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* 簽名 Modal */
+  #sig-modal img { width: 100%; border: 1px solid var(--border); border-radius: 6px; }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- 登入畫面 -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>保健箱管理後台</h1>
+    <p>請輸入管理者帳號密碼</p>
+    <label>帳號</label>
+    <input type="text" id="login-user" placeholder="admin" autocomplete="username">
+    <label>密碼</label>
+    <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+    <button class="btn-login" onclick="doLogin()">登入</button>
+    <div id="login-error">帳號或密碼錯誤，請再試一次。</div>
+  </div>
+</div>
+
+<!-- 後台主體 -->
+<div id="admin-screen">
+  <div class="topbar">
+    <div class="topbar-brand">保健箱管理系統</div>
+    <div class="topbar-right">
+      <span class="topbar-user" id="topbar-username"></span>
+      <button class="btn-logout" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <!-- 側邊選單 -->
+    <div class="sidebar">
+      <div class="nav-section">總覽</div>
+      <div class="nav-item active" onclick="showTab('dashboard')">儀表板</div>
+      <div class="nav-section">記錄管理</div>
+      <div class="nav-item" onclick="showTab('records')">檢查記錄</div>
+      <div class="nav-section">系統設定</div>
+      <div class="nav-item" onclick="showTab('boxes')">保健箱管理</div>
+      <div class="nav-item" onclick="showTab('items')">品項管理</div>
+      <div class="nav-section">使用者</div>
+      <div class="nav-item" onclick="showTab('users')">管理員帳號</div>
+      <div class="nav-section">資料匯入</div>
+      <div class="nav-item" onclick="showTab('import')">批次匯入</div>
+    </div>
+
+    <!-- 主內容 -->
+    <div class="main-content">
+
+      <!-- 儀表板 -->
+      <div id="tab-dashboard" class="tab-page active">
+        <div class="page-title">儀表板</div>
+        <div class="page-sub">系統整體狀態一覽</div>
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card"><div class="stat-num" id="stat-boxes">-</div><div class="stat-label">保健箱數</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-this-month">-</div><div class="stat-label">本月檢查次數</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-abnormal">-</div><div class="stat-label">本月異常品項</div></div>
+          <div class="stat-card"><div class="stat-num" id="stat-total">-</div><div class="stat-label">累計記錄筆數</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>最近10筆檢查記錄</h3></div>
+          <div class="card-body" style="padding:0;overflow-x:auto">
+            <table class="data-table" id="recent-table">
+              <thead><tr><th>保健箱</th><th>檢查日期</th><th>填寫時間</th><th>異常品項</th><th>簽名</th></tr></thead>
+              <tbody id="recent-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 檢查記錄 -->
+      <div id="tab-records" class="tab-page">
+        <div class="page-title">檢查記錄</div>
+        <div class="page-sub">所有保健箱的月檢查記錄</div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>篩選</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>保健箱</label>
+                <select id="filter-box">
+                  <option value="">全部</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>月份</label>
+                <input type="month" id="filter-month">
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="loadRecords()">查詢</button>
+            <button class="btn btn-outline" style="margin-left:8px" onclick="exportRecords()">匯出 CSV</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body" style="padding:0;overflow-x:auto">
+            <table class="data-table">
+              <thead><tr><th>保健箱</th><th>檢查日期</th><th>填寫時間</th><th>異常數</th><th>備註</th><th>簽名</th><th>操作</th></tr></thead>
+              <tbody id="records-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 保健箱管理 -->
+      <div id="tab-boxes" class="tab-page">
+        <div class="page-title">保健箱管理</div>
+        <div class="page-sub">新增、編輯保健箱地點</div>
+        <div class="card">
+          <div class="card-head">
+            <h3>新增保健箱</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>名稱 *</label>
+                <input type="text" id="box-name" placeholder="例：一樓保健箱">
+              </div>
+              <div class="form-group">
+                <label>地點說明</label>
+                <input type="text" id="box-location" placeholder="例：護理站旁">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>管理人</label>
+              <input type="text" id="box-manager" placeholder="管理人姓名">
+            </div>
+            <button class="btn btn-primary" onclick="addBox()">新增保健箱</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>現有保健箱</h3></div>
+          <div class="card-body" style="padding:0;overflow-x:auto">
+            <table class="data-table">
+              <thead><tr><th>名稱</th><th>地點</th><th>管理人</th><th>狀態</th><th>操作</th></tr></thead>
+              <tbody id="boxes-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 品項管理 -->
+      <div id="tab-items" class="tab-page">
+        <div class="page-title">品項管理</div>
+        <div class="page-sub">管理各保健箱的檢查品項與有效期限</div>
+
+        <div class="card">
+          <div class="card-head"><h3>選擇保健箱</h3></div>
+          <div class="card-body">
+            <select id="item-box-select" onchange="loadItemsAdmin(this.value)" style="max-width:300px;padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-family:'Noto Sans TC',sans-serif">
+              <option value="">── 請選擇 ──</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card" id="items-mgmt-card" style="display:none">
+          <div class="card-head">
+            <h3>品項列表</h3>
+            <button class="btn btn-primary btn-sm" onclick="openAddItemModal()">+ 新增品項</button>
+          </div>
+          <div class="card-body" style="padding:0;overflow-x:auto">
+            <table class="data-table">
+              <thead><tr><th>#</th><th>名稱</th><th>基本數量</th><th>有效期限</th><th>操作</th></tr></thead>
+              <tbody id="items-admin-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 管理員帳號 -->
+      <div id="tab-users" class="tab-page">
+        <div class="page-title">管理員帳號</div>
+        <div class="page-sub">建立與管理系統帳號</div>
+
+        <div class="card">
+          <div class="card-head"><h3>新增管理員</h3></div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>帳號 *</label>
+                <input type="text" id="new-username" placeholder="英文字母+數字">
+              </div>
+              <div class="form-group">
+                <label>顯示名稱</label>
+                <input type="text" id="new-displayname" placeholder="中文姓名">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>密碼 *（至少8位）</label>
+                <input type="password" id="new-password" placeholder="••••••••">
+              </div>
+              <div class="form-group">
+                <label>確認密碼 *</label>
+                <input type="password" id="new-password2" placeholder="••••••••">
+              </div>
+            </div>
+            <div id="user-alert" class="alert"></div>
+            <button class="btn btn-primary" onclick="createUser()">建立帳號</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>管理員列表</h3></div>
+          <div class="card-body" style="padding:0;overflow-x:auto">
+            <table class="data-table">
+              <thead><tr><th>帳號</th><th>顯示名稱</th><th>最後登入</th><th>狀態</th><th>操作</th></tr></thead>
+              <tbody id="users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 批次匯入 -->
+      <div id="tab-import" class="tab-page">
+        <div class="page-title">批次匯入</div>
+        <div class="page-sub">從 CSV 檔案匯入歷史記錄（由 PDF 掃描轉換而來）</div>
+
+        <div class="card">
+          <div class="card-head"><h3>CSV 格式說明</h3></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:12px">CSV 第一列為標題列，格式如下：</p>
+            <pre style="background:var(--bg);padding:14px;border-radius:7px;font-size:12px;font-family:'DM Mono',monospace;overflow-x:auto;line-height:1.8">box_name,inspection_date,inspector_name,item_no,item_name,result,actual_quantity,updated_item,new_expiry_date,abnormal_notes
+保健箱A,2025-01-25,郭永利,1,生理食鹽水(20ML),normal,,,, 
+保健箱A,2025-01-25,郭永利,2,中衛優碘棉片,normal,,,,
+保健箱A,2025-01-25,郭永利,5,OK繃,abnormal,7片,OK繃,,數量不足</pre>
+            <p style="font-size:12px;color:var(--muted);margin-top:10px">result 欄位：<code style="background:var(--bg);padding:2px 6px;border-radius:4px">normal</code> = 正常，<code style="background:var(--bg);padding:2px 6px;border-radius:4px">abnormal</code> = 異常</p>
+            <a href="data:text/csv;charset=utf-8,%EF%BB%BFbox_name,inspection_date,inspector_name,item_no,item_name,result,actual_quantity,updated_item,new_expiry_date,abnormal_notes%0A%E4%BF%9D%E5%81%A5%E7%AE%B1A,2025-01-25,%E6%AA%A2%E6%9F%A5%E4%BA%BA,1,%E7%94%9F%E7%90%86%E9%A3%9F%E9%B9%BD%E6%B0%B4(20ML),normal,,,,%" download="import_template.csv" class="btn btn-outline btn-sm" style="display:inline-block;margin-top:12px;text-decoration:none">下載範本 CSV</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h3>上傳 CSV 檔案</h3></div>
+          <div class="card-body">
+            <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-input').click()">
+              <div class="drop-zone-icon">📂</div>
+              <p>點擊選擇或拖曳 CSV 檔案至此</p>
+              <p style="font-size:12px;margin-top:4px">支援 UTF-8 編碼 CSV</p>
+              <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="handleCSV(this.files[0])">
+            </div>
+            <div id="csv-preview"></div>
+            <div id="import-alert" class="alert"></div>
+            <button class="btn btn-green" id="import-btn" onclick="doImport()" style="display:none;margin-top:12px">確認匯入資料庫</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 簽名 Modal -->
+<div class="modal-overlay" id="sig-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>電子簽名</h3>
+      <button class="modal-close" onclick="closeModal('sig-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <img id="sig-modal-img" src="" alt="電子簽名">
+    </div>
+  </div>
+</div>
+
+<!-- 品項新增 Modal -->
+<div class="modal-overlay" id="item-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>新增品項</h3>
+      <button class="modal-close" onclick="closeModal('item-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>項次 *</label><input type="number" id="modal-item-no" min="1"></div>
+      <div class="form-group"><label>名稱 *</label><input type="text" id="modal-item-name"></div>
+      <div class="form-group"><label>基本數量 *</label><input type="text" id="modal-item-qty"></div>
+      <div class="form-group"><label>有效期限</label><input type="date" id="modal-item-expiry"></div>
+      <div class="form-group"><label>有效期限備註</label><input type="text" id="modal-item-expiry-notes" placeholder="例：2026年12月前更換"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('item-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveItem()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 設定：請填入您的 Supabase 資訊
+// ============================================================
+const SUPABASE_URL = 'https://zxeqkfjydtsuzcfudfla.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_2VzPxIRYzBnk5Ebx8SaYzA_y5PjWxeh';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4ZXFrZmp5ZHRzdXpjZnVkZmxhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIzMDM4MSwiZXhwIjoyMDkxODA2MzgxfQ.b8ENB-Yzm08AkgrIuKfcM65DOXuxCuq3vdq3Fxtgjgg';
+
+// ============================================================
+// bcryptjs（用於密碼 hash，從 CDN 載入）
+// ============================================================
+const bcryptScript = document.createElement('script');
+bcryptScript.src = 'https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js';
+document.head.appendChild(bcryptScript);
+
+// ============================================================
+// API
+// ============================================================
+function apiHeaders(useService = false) {
+  const key = useService ? SUPABASE_SERVICE_KEY : SUPABASE_ANON_KEY;
+  return {
+    'apikey': key,
+    'Authorization': 'Bearer ' + key,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+}
+
+async function dbFetch(path, opts = {}, useService = true) {
+  const url = SUPABASE_URL + '/rest/v1/' + path;
+  const res = await fetch(url, { ...opts, headers: { ...apiHeaders(useService), ...(opts.headers || {}) } });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.message || 'HTTP ' + res.status);
+  }
+  return res.json().catch(() => null);
+}
+
+// ============================================================
+// 登入
+// ============================================================
+let currentAdmin = null;
+
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  document.getElementById('login-error').style.display = 'none';
+
+  try {
+    const rows = await dbFetch(`admins?username=eq.${encodeURIComponent(user)}&is_active=eq.true`);
+    if (!rows || rows.length === 0) throw new Error('not found');
+
+    const admin = rows[0];
+    await bcryptScript.onload; // 等待載入
+    const ok = await new Promise(res => bcrypt.compare(pass, admin.password_hash, (e, r) => res(r)));
+    if (!ok) throw new Error('wrong password');
+
+    // 更新最後登入
+    await dbFetch(`admins?id=eq.${admin.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ last_login: new Date().toISOString() })
+    });
+
+    currentAdmin = admin;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('admin-screen').style.display = 'block';
+    document.getElementById('topbar-username').textContent = admin.display_name || admin.username;
+    initAdmin();
+  } catch {
+    document.getElementById('login-error').style.display = 'block';
+  }
+}
+
+document.getElementById('login-pass').addEventListener('keypress', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function doLogout() {
+  currentAdmin = null;
+  document.getElementById('admin-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-pass').value = '';
+}
+
+// ============================================================
+// Tab 切換
+// ============================================================
+function showTab(name) {
+  document.querySelectorAll('.tab-page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'records') { loadBoxesSelect(); loadRecords(); }
+  if (name === 'boxes') loadBoxesList();
+  if (name === 'items') loadBoxesForItems();
+  if (name === 'users') loadUsers();
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+async function initAdmin() {
+  loadDashboard();
+}
+
+// ============================================================
+// 儀表板
+// ============================================================
+async function loadDashboard() {
+  try {
+    const [boxes, allInsp, allItems] = await Promise.all([
+      dbFetch('boxes?is_active=eq.true&select=id'),
+      dbFetch('inspections?select=id,submitted_at'),
+      dbFetch('inspection_items?select=id,result')
+    ]);
+
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const thisMonth = allInsp.filter(r => r.submitted_at?.startsWith(ym));
+    const abnormal = allItems.filter(r => r.result === 'abnormal');
+
+    document.getElementById('stat-boxes').textContent = boxes.length;
+    document.getElementById('stat-this-month').textContent = thisMonth.length;
+    document.getElementById('stat-abnormal').textContent = abnormal.length;
+    document.getElementById('stat-total').textContent = allInsp.length;
+
+    const recent = await dbFetch('inspections?order=submitted_at.desc&limit=10&select=id,inspection_date,submitted_at,notes,signature_data,box_id,boxes(name)');
+    const tbody = document.getElementById('recent-tbody');
+    tbody.innerHTML = '';
+    for (const r of recent) {
+      const items = await dbFetch(`inspection_items?inspection_id=eq.${r.id}&result=eq.abnormal&select=id`);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escHtml(r.boxes?.name || '-')}</td>
+        <td>${r.inspection_date}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:12px">${r.submitted_at ? new Date(r.submitted_at).toLocaleString('zh-TW') : '-'}</td>
+        <td>${items.length > 0 ? `<span class="badge badge-red">${items.length} 項</span>` : '<span class="badge badge-green">全正常</span>'}</td>
+        <td>${r.signature_data ? `<img class="sig-thumb" src="${r.signature_data}" onclick="viewSig('${r.signature_data}')">` : '-'}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  } catch (e) { console.error(e); }
+}
+
+// ============================================================
+// 檢查記錄
+// ============================================================
+async function loadBoxesSelect() {
+  const boxes = await dbFetch('boxes?is_active=eq.true');
+  const sel = document.getElementById('filter-box');
+  sel.innerHTML = '<option value="">全部</option>';
+  boxes.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.id;
+    opt.textContent = b.name;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadRecords() {
+  const boxId = document.getElementById('filter-box').value;
+  const month = document.getElementById('filter-month').value;
+  let query = 'inspections?order=submitted_at.desc&select=id,inspection_date,submitted_at,notes,signature_data,box_id,boxes(name)';
+  if (boxId) query += `&box_id=eq.${boxId}`;
+  if (month) query += `&inspection_date=gte.${month}-01&inspection_date=lt.${month}-32`;
+
+  const records = await dbFetch(query);
+  const tbody = document.getElementById('records-tbody');
+  tbody.innerHTML = '';
+
+  for (const r of records) {
+    const abnItems = await dbFetch(`inspection_items?inspection_id=eq.${r.id}&result=eq.abnormal&select=id`);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escHtml(r.boxes?.name || '-')}</td>
+      <td>${r.inspection_date}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${r.submitted_at ? new Date(r.submitted_at).toLocaleString('zh-TW') : '-'}</td>
+      <td>${abnItems.length > 0 ? `<span class="badge badge-red">${abnItems.length}</span>` : '<span class="badge badge-green">0</span>'}</td>
+      <td style="max-width:140px;font-size:12px;color:var(--muted)">${escHtml(r.notes || '-')}</td>
+      <td>${r.signature_data ? `<img class="sig-thumb" src="${r.signature_data}" onclick="viewSig('${r.signature_data}')">` : '-'}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="viewDetail('${r.id}')">明細</button></td>
+    `;
+    tbody.appendChild(tr);
+  }
+}
+
+// ============================================================
+// 保健箱管理
+// ============================================================
+async function loadBoxesList() {
+  const boxes = await dbFetch('boxes?order=created_at');
+  const tbody = document.getElementById('boxes-tbody');
+  tbody.innerHTML = '';
+  boxes.forEach(b => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${escHtml(b.name)}</strong></td>
+      <td>${escHtml(b.location || '-')}</td>
+      <td>${escHtml(b.manager_name || '-')}</td>
+      <td><span class="badge ${b.is_active ? 'badge-green' : 'badge-gray'}">${b.is_active ? '啟用' : '停用'}</span></td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="toggleBox('${b.id}', ${b.is_active})">${b.is_active ? '停用' : '啟用'}</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function addBox() {
+  const name = document.getElementById('box-name').value.trim();
+  const location = document.getElementById('box-location').value.trim();
+  const manager = document.getElementById('box-manager').value.trim();
+  if (!name) { alert('請填寫保健箱名稱'); return; }
+
+  await dbFetch('boxes', { method: 'POST', body: JSON.stringify({ name, location: location || null, manager_name: manager || null }) });
+  document.getElementById('box-name').value = '';
+  document.getElementById('box-location').value = '';
+  document.getElementById('box-manager').value = '';
+  loadBoxesList();
+}
+
+async function toggleBox(id, isActive) {
+  await dbFetch(`boxes?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ is_active: !isActive }) });
+  loadBoxesList();
+}
+
+// ============================================================
+// 品項管理
+// ============================================================
+let currentAdminBoxId = null;
+
+async function loadBoxesForItems() {
+  const boxes = await dbFetch('boxes?is_active=eq.true');
+  const sel = document.getElementById('item-box-select');
+  sel.innerHTML = '<option value="">── 請選擇 ──</option>';
+  boxes.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.id;
+    opt.textContent = b.name;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadItemsAdmin(boxId) {
+  currentAdminBoxId = boxId;
+  if (!boxId) { document.getElementById('items-mgmt-card').style.display = 'none'; return; }
+  document.getElementById('items-mgmt-card').style.display = 'block';
+
+  const items = await dbFetch(`items?box_id=eq.${boxId}&order=sort_order`);
+  const tbody = document.getElementById('items-admin-tbody');
+  tbody.innerHTML = '';
+  items.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${item.item_no}</td>
+      <td>${escHtml(item.name)}</td>
+      <td style="font-size:12px;color:var(--muted)">${escHtml(item.base_quantity)}</td>
+      <td>
+        ${item.expiry_date ? `<span class="badge ${isExpiringSoon(item.expiry_date) ? 'badge-red' : 'badge-green'}">${item.expiry_date}</span>` : '-'}
+      </td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="editExpiry('${item.id}', '${item.expiry_date || ''}')">設定期限</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')" style="margin-left:4px">刪除</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function isExpiringSoon(dateStr) {
+  if (!dateStr) return false;
+  const diff = (new Date(dateStr) - new Date()) / (1000 * 60 * 60 * 24);
+  return diff < 30;
+}
+
+function openAddItemModal() {
+  document.getElementById('modal-item-no').value = '';
+  document.getElementById('modal-item-name').value = '';
+  document.getElementById('modal-item-qty').value = '';
+  document.getElementById('modal-item-expiry').value = '';
+  document.getElementById('modal-item-expiry-notes').value = '';
+  document.getElementById('item-modal').classList.add('open');
+}
+
+async function saveItem() {
+  const no = parseInt(document.getElementById('modal-item-no').value);
+  const name = document.getElementById('modal-item-name').value.trim();
+  const qty = document.getElementById('modal-item-qty').value.trim();
+  const expiry = document.getElementById('modal-item-expiry').value;
+  const notes = document.getElementById('modal-item-expiry-notes').value.trim();
+
+  if (!no || !name || !qty) { alert('請填寫必要欄位'); return; }
+
+  await dbFetch('items', { method: 'POST', body: JSON.stringify({
+    box_id: currentAdminBoxId, item_no: no, name, base_quantity: qty,
+    expiry_date: expiry || null, expiry_notes: notes || null, sort_order: no
+  })});
+  closeModal('item-modal');
+  loadItemsAdmin(currentAdminBoxId);
+}
+
+async function editExpiry(itemId, currentDate) {
+  const d = prompt('輸入新有效期限（格式：YYYY-MM-DD）', currentDate);
+  if (d === null) return;
+  await dbFetch(`items?id=eq.${itemId}`, { method: 'PATCH', body: JSON.stringify({ expiry_date: d || null }) });
+  loadItemsAdmin(currentAdminBoxId);
+}
+
+async function deleteItem(itemId) {
+  if (!confirm('確定要刪除此品項？')) return;
+  await dbFetch(`items?id=eq.${itemId}`, { method: 'PATCH', body: JSON.stringify({ is_active: false }) });
+  loadItemsAdmin(currentAdminBoxId);
+}
+
+// ============================================================
+// 管理員帳號
+// ============================================================
+async function loadUsers() {
+  const users = await dbFetch('admins?order=created_at');
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = '';
+  users.forEach(u => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-family:'DM Mono',monospace">${escHtml(u.username)}</td>
+      <td>${escHtml(u.display_name || '-')}</td>
+      <td style="font-size:12px;color:var(--muted)">${u.last_login ? new Date(u.last_login).toLocaleString('zh-TW') : '從未登入'}</td>
+      <td><span class="badge ${u.is_active ? 'badge-green' : 'badge-gray'}">${u.is_active ? '啟用' : '停用'}</span></td>
+      <td>
+        ${u.id !== currentAdmin.id ? `<button class="btn btn-outline btn-sm" onclick="toggleUser('${u.id}', ${u.is_active})">${u.is_active ? '停用' : '啟用'}</button>` : '<span style="font-size:12px;color:var(--muted)">（自己）</span>'}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function createUser() {
+  const username = document.getElementById('new-username').value.trim();
+  const displayName = document.getElementById('new-displayname').value.trim();
+  const pass = document.getElementById('new-password').value;
+  const pass2 = document.getElementById('new-password2').value;
+  const alert = document.getElementById('user-alert');
+
+  if (!username || !pass) { showUserAlert('請填寫帳號和密碼', 'error'); return; }
+  if (pass.length < 8) { showUserAlert('密碼至少需要8位', 'error'); return; }
+  if (pass !== pass2) { showUserAlert('兩次密碼不一致', 'error'); return; }
+
+  const hash = await new Promise(res => bcrypt.hash(pass, 10, (e, h) => res(h)));
+  try {
+    await dbFetch('admins', { method: 'POST', body: JSON.stringify({
+      username, display_name: displayName || null, password_hash: hash
+    })});
+    showUserAlert('帳號建立成功！', 'success');
+    document.getElementById('new-username').value = '';
+    document.getElementById('new-displayname').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('new-password2').value = '';
+    loadUsers();
+  } catch (e) {
+    showUserAlert('建立失敗：' + e.message, 'error');
+  }
+}
+
+function showUserAlert(msg, type) {
+  const el = document.getElementById('user-alert');
+  el.textContent = msg;
+  el.className = `alert ${type === 'success' ? 'alert-success' : 'alert-error'} show`;
+}
+
+async function toggleUser(id, isActive) {
+  await dbFetch(`admins?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ is_active: !isActive }) });
+  loadUsers();
+}
+
+// ============================================================
+// 批次匯入
+// ============================================================
+let importData = [];
+
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag-over'); handleCSV(e.dataTransfer.files[0]); });
+
+function handleCSV(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    parseCSV(text);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n').map(l => l.trim());
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  importData = lines.slice(1).filter(l => l).map(line => {
+    const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = vals[i] || '');
+    return obj;
+  });
+
+  const preview = document.getElementById('csv-preview');
+  const alert = document.getElementById('import-alert');
+  alert.className = 'alert';
+
+  if (importData.length === 0) {
+    preview.innerHTML = '<p style="color:var(--muted);font-size:13px">無有效資料列</p>';
+    document.getElementById('import-btn').style.display = 'none';
+    return;
+  }
+
+  preview.innerHTML = `
+    <p style="font-size:13px;color:var(--muted);margin-bottom:10px">預覽：共 <strong>${importData.length}</strong> 筆記錄</p>
+    <div style="overflow-x:auto;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:7px">
+      <table class="data-table">
+        <thead><tr>${headers.map(h => `<th>${escHtml(h)}</th>`).join('')}</tr></thead>
+        <tbody>${importData.slice(0,5).map(row =>
+          `<tr>${headers.map(h => `<td style="font-size:12px">${escHtml(row[h])}</td>`).join('')}</tr>`
+        ).join('')}${importData.length > 5 ? `<tr><td colspan="${headers.length}" style="text-align:center;font-size:12px;color:var(--muted)">...還有 ${importData.length-5} 筆</td></tr>` : ''}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('import-btn').style.display = 'inline-block';
+}
+
+async function doImport() {
+  const btn = document.getElementById('import-btn');
+  btn.innerHTML = '<span class="spinner"></span>匯入中...';
+  btn.disabled = true;
+
+  const alertEl = document.getElementById('import-alert');
+  let success = 0, errors = 0;
+
+  // 取得所有保健箱對應表
+  const boxes = await dbFetch('boxes');
+  const boxMap = {};
+  boxes.forEach(b => boxMap[b.name] = b.id);
+
+  // 取得所有品項對應表
+  const items = await dbFetch('items');
+  const itemMap = {};
+  items.forEach(i => itemMap[`${i.box_id}_${i.item_no}`] = i);
+
+  // 按日期+保健箱分組，一組 = 一次檢查
+  const groups = {};
+  importData.forEach(row => {
+    const key = `${row.box_name}|${row.inspection_date}|${row.inspector_name}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(row);
+  });
+
+  for (const [key, rows] of Object.entries(groups)) {
+    const [boxName, date, inspector] = key.split('|');
+    const boxId = boxMap[boxName];
+    if (!boxId) { errors++; continue; }
+
+    try {
+      const [insp] = await dbFetch('inspections', { method: 'POST', body: JSON.stringify({
+        box_id: boxId, inspection_date: date,
+        inspector_name: inspector || null,
+        submitted_at: new Date(date).toISOString(),
+        notes: '批次匯入'
+      })});
+
+      const itemRecords = rows.map(row => {
+        const item = itemMap[`${boxId}_${parseInt(row.item_no)}`];
+        return {
+          inspection_id: insp.id,
+          item_id: item?.id || null,
+          item_name: row.item_name,
+          result: row.result === 'normal' ? 'normal' : 'abnormal',
+          actual_quantity: row.actual_quantity || null,
+          updated_item: row.updated_item || null,
+          new_expiry_date: row.new_expiry_date || null,
+          abnormal_notes: row.abnormal_notes || null
+        };
+      });
+
+      await dbFetch('inspection_items', { method: 'POST', body: JSON.stringify(itemRecords), headers: { Prefer: 'return=minimal' } });
+      success++;
+    } catch { errors++; }
+  }
+
+  alertEl.textContent = `匯入完成：${success} 筆成功${errors > 0 ? `，${errors} 筆失敗（保健箱名稱不符）` : ''}`;
+  alertEl.className = `alert ${errors > 0 ? 'alert-error' : 'alert-success'} show`;
+  btn.innerHTML = '確認匯入資料庫';
+  btn.disabled = false;
+  importData = [];
+  document.getElementById('import-btn').style.display = 'none';
+  document.getElementById('csv-preview').innerHTML = '';
+}
+
+// ============================================================
+// 匯出 CSV
+// ============================================================
+async function exportRecords() {
+  const boxId = document.getElementById('filter-box').value;
+  const month = document.getElementById('filter-month').value;
+  let query = 'inspections?order=inspection_date.asc&select=id,inspection_date,submitted_at,notes,boxes(name)';
+  if (boxId) query += `&box_id=eq.${boxId}`;
+  if (month) query += `&inspection_date=gte.${month}-01&inspection_date=lt.${month}-32`;
+
+  const records = await dbFetch(query);
+  const rows = [['保健箱', '檢查日期', '填寫時間', '品項', '結果', '實際數量', '更新品項', '新有效期限', '異常備註']];
+
+  for (const r of records) {
+    const items = await dbFetch(`inspection_items?inspection_id=eq.${r.id}`);
+    items.forEach(i => {
+      rows.push([
+        r.boxes?.name || '', r.inspection_date,
+        r.submitted_at ? new Date(r.submitted_at).toLocaleString('zh-TW') : '',
+        i.item_name, i.result === 'normal' ? '正常' : '異常',
+        i.actual_quantity || '', i.updated_item || '',
+        i.new_expiry_date || '', i.abnormal_notes || ''
+      ]);
+    });
+  }
+
+  const csv = '\uFEFF' + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `保健箱記錄_${month || 'all'}.csv`;
+  a.click();
+}
+
+// ============================================================
+// Modal & 工具
+// ============================================================
+function viewSig(data) {
+  document.getElementById('sig-modal-img').src = data;
+  document.getElementById('sig-modal').classList.add('open');
+}
+function viewDetail(id) {
+  window.open(`detail.html?id=${id}`, '_blank');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 關閉 Modal 點擊外部
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
