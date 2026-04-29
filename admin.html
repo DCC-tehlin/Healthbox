@@ -488,11 +488,19 @@ const SUPABASE_ANON_KEY = 'sb_publishable_2VzPxIRYzBnk5Ebx8SaYzA_y5PjWxeh';
 const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4ZXFrZmp5ZHRzdXpjZnVkZmxhIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjIzMDM4MSwiZXhwIjoyMDkxODA2MzgxfQ.b8ENB-Yzm08AkgrIuKfcM65DOXuxCuq3vdq3Fxtgjgg';
 
 // ============================================================
-// bcryptjs（用於密碼 hash，從 CDN 載入）
+// bcryptjs 載入
 // ============================================================
-const bcryptScript = document.createElement('script');
-bcryptScript.src = 'https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js';
-document.head.appendChild(bcryptScript);
+let bcryptLoaded = false;
+function loadBcrypt() {
+  return new Promise((resolve, reject) => {
+    if (typeof bcrypt !== 'undefined') { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js';
+    s.onload = () => { bcryptLoaded = true; resolve(); };
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
 
 // ============================================================
 // API
@@ -532,7 +540,7 @@ async function doLogin() {
     if (!rows || rows.length === 0) throw new Error('not found');
 
     const admin = rows[0];
-    await bcryptScript.onload; // 等待載入
+    await loadBcrypt();
     const ok = await new Promise(res => bcrypt.compare(pass, admin.password_hash, (e, r) => res(r)));
     if (!ok) throw new Error('wrong password');
 
@@ -828,6 +836,7 @@ async function createUser() {
   if (pass.length < 8) { showUserAlert('密碼至少需要8位', 'error'); return; }
   if (pass !== pass2) { showUserAlert('兩次密碼不一致', 'error'); return; }
 
+  await loadBcrypt();
   const hash = await new Promise(res => bcrypt.hash(pass, 10, (e, h) => res(h)));
   try {
     await dbFetch('admins', { method: 'POST', body: JSON.stringify({
