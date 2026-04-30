@@ -183,6 +183,16 @@
   .abnormal-detail label { color: var(--red); font-size: 12px; margin-top: 8px; }
   .abnormal-detail label:first-child { margin-top: 0; }
 
+  /* 電子簽名模式切換 */
+  .sig-tab-bar { display:flex; gap:0; margin-bottom:10px; border:1.5px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .sig-tab { flex:1; padding:9px; text-align:center; font-size:13px; font-weight:500; cursor:pointer; background:white; color:var(--gray-600); border:none; font-family:'Noto Sans TC',sans-serif; transition:background 0.15s,color 0.15s; }
+  .sig-tab.active { background:var(--gray-800); color:white; }
+  .sig-panel { display:none; }
+  .sig-panel.active { display:block; }
+  .sig-text-input { width:100%; padding:14px; font-size:22px; font-family:'Noto Sans TC',sans-serif; text-align:center; border:1.5px solid var(--border); border-radius:var(--radius); color:var(--gray-900); letter-spacing:4px; font-weight:700; }
+  .sig-text-input:focus { outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(192,57,43,0.1); }
+  .sig-text-preview { background:var(--gray-50); border:1.5px solid var(--border); border-radius:var(--radius); padding:16px; text-align:center; font-size:28px; font-weight:700; color:var(--gray-900); letter-spacing:6px; margin-top:8px; min-height:60px; }
+
   /* 電子簽名 */
   .sig-wrapper {
     border: 2px dashed var(--border);
@@ -359,13 +369,29 @@
         <h2>電子簽名 <span style="font-size:12px;font-weight:400;color:var(--gray-600)">（檢查人於下方簽名）</span></h2>
       </div>
       <div class="card-body">
-        <div class="sig-wrapper">
-          <canvas id="sig-canvas" width="760" height="160"></canvas>
-          <div class="sig-hint" id="sig-hint">請在此處簽名<br><span style="font-size:11px">支援滑鼠或觸控筆</span></div>
+        <!-- 模式切換 -->
+        <div class="sig-tab-bar">
+          <button type="button" class="sig-tab active" onclick="switchSigMode('draw')">✏️ 手寫簽名</button>
+          <button type="button" class="sig-tab" onclick="switchSigMode('text')">⌨️ 文字輸入姓名</button>
         </div>
-        <div class="sig-actions">
-          <button type="button" class="btn-clear" onclick="clearSig()">清除重簽</button>
-          <span id="sig-status" style="font-size:12px;color:var(--gray-400);padding:6px 0;margin-left:4px"></span>
+
+        <!-- 手寫模式 -->
+        <div class="sig-panel active" id="sig-panel-draw">
+          <div class="sig-wrapper">
+            <canvas id="sig-canvas" width="760" height="160"></canvas>
+            <div class="sig-hint" id="sig-hint">請在此處簽名<br><span style="font-size:11px">支援滑鼠或觸控筆</span></div>
+          </div>
+          <div class="sig-actions">
+            <button type="button" class="btn-clear" onclick="clearSig()">清除重簽</button>
+            <span id="sig-status" style="font-size:12px;color:var(--gray-400);padding:6px 0;margin-left:4px"></span>
+          </div>
+        </div>
+
+        <!-- 文字輸入模式 -->
+        <div class="sig-panel" id="sig-panel-text">
+          <label style="font-size:13px;font-weight:500;color:var(--gray-600);display:block;margin-bottom:6px">輸入姓名（將轉換為簽名）</label>
+          <input type="text" class="sig-text-input" id="sig-text-input" placeholder="請輸入姓名" maxlength="10" oninput="updateTextSig()">
+          <div class="sig-text-preview" id="sig-text-preview" style="display:none"></div>
         </div>
       </div>
     </div>
@@ -532,6 +558,48 @@ const canvas = document.getElementById('sig-canvas');
 const ctx = canvas.getContext('2d');
 let signing = false;
 let hasSig = false;
+let sigMode = 'draw'; // 'draw' | 'text'
+
+// 模式切換
+function switchSigMode(mode) {
+  sigMode = mode;
+  document.querySelectorAll('.sig-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.sig-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('sig-panel-' + mode).classList.add('active');
+  hasSig = (mode === 'text' && document.getElementById('sig-text-input').value.trim().length > 0);
+}
+
+// 文字簽名更新
+function updateTextSig() {
+  const name = document.getElementById('sig-text-input').value.trim();
+  const preview = document.getElementById('sig-text-preview');
+  if (name) {
+    preview.style.display = 'block';
+    preview.textContent = name;
+    hasSig = true;
+    document.getElementById('sig-status').textContent = '';
+  } else {
+    preview.style.display = 'none';
+    hasSig = false;
+  }
+}
+
+// 文字轉 Canvas 圖片
+function textToSigData(name) {
+  const c = document.createElement('canvas');
+  c.width = 400; c.height = 120;
+  const cx = c.getContext('2d');
+  cx.fillStyle = 'white';
+  cx.fillRect(0, 0, 400, 120);
+  cx.fillStyle = '#1a1a1a';
+  cx.font = 'bold 52px "Noto Sans TC", sans-serif';
+  cx.textAlign = 'center';
+  cx.textBaseline = 'middle';
+  cx.letterSpacing = '8px';
+  cx.fillText(name, 200, 60);
+  return c.toDataURL('image/png');
+}
 
 function getPos(e) {
   const rect = canvas.getBoundingClientRect();
@@ -594,7 +662,7 @@ document.getElementById('inspection-form').addEventListener('submit', async e =>
   // 驗證
   if (!boxId) { showAlert('請選擇保健箱地點', 'error'); return; }
   if (!inspDate) { showAlert('請選擇檢查日期', 'error'); return; }
-  if (!hasSig) { showAlert('請在簽名欄位完成電子簽名', 'error'); return; }
+  if (!hasSig) { showAlert('請完成簽名（手寫或輸入姓名）', 'error'); return; }
   if (currentItems.length === 0) { showAlert('尚未載入品項，請先選擇保健箱', 'error'); return; }
 
   const btn = document.getElementById('submit-btn');
@@ -602,7 +670,13 @@ document.getElementById('inspection-form').addEventListener('submit', async e =>
   btn.innerHTML = '<span class="spinner"></span>送出中...';
 
   try {
-    const sigData = canvas.toDataURL('image/png');
+    let sigData;
+    if (sigMode === 'text') {
+      const name = document.getElementById('sig-text-input').value.trim();
+      sigData = textToSigData(name);
+    } else {
+      sigData = canvas.toDataURL('image/png');
+    }
     const submittedAt = new Date().toISOString();
 
     // 建立檢查主記錄
@@ -650,6 +724,8 @@ document.getElementById('inspection-form').addEventListener('submit', async e =>
     showAlert('✅ 檢查記錄已成功儲存！（' + new Date().toLocaleString('zh-TW') + '）', 'success');
     document.getElementById('inspection-form').reset();
     clearSig();
+    document.getElementById('sig-text-input').value = '';
+    document.getElementById('sig-text-preview').style.display = 'none';
     currentItems = [];
     document.getElementById('items-tbody').innerHTML = '';
     document.getElementById('items-table').style.display = 'none';
