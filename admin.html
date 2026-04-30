@@ -936,9 +936,9 @@ async function loadUsers() {
       <td>${escHtml(u.display_name || '-')}</td>
       <td style="font-size:12px;color:var(--muted)">${u.last_login ? new Date(u.last_login).toLocaleString('zh-TW') : '從未登入'}</td>
       <td><span class="badge ${u.is_active ? 'badge-green' : 'badge-gray'}">${u.is_active ? '啟用' : '停用'}</span></td>
-      <td style="display:flex;gap:6px;flex-wrap:wrap">
+      <td style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-outline btn-sm" onclick="openChangePwModal('${u.id}', '${escHtml(u.username)}')">改密碼</button>
-        ${u.id !== currentAdmin.id ? `<button class="btn btn-outline btn-sm" onclick="toggleUser('${u.id}', ${u.is_active})">${u.is_active ? '停用' : '啟用'}</button>` : ''}
+        ${u.id !== currentAdmin.id ? `<button class="btn btn-outline btn-sm" onclick="toggleUser('${u.id}', ${u.is_active})">${u.is_active ? '停用' : '啟用'}</button>` : '<span style="font-size:11px;color:var(--muted)">(目前登入中)</span>'}
       </td>
     `;
     tbody.appendChild(tr);
