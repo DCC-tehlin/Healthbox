@@ -189,6 +189,21 @@
   /* 簽名 Modal */
   #sig-modal img { width: 100%; border: 1px solid var(--border); border-radius: 6px; }
 
+  /* 明細 Modal */
+  #detail-modal .modal { max-width: 680px; }
+  .detail-header { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
+  .detail-stat { background:var(--bg); border-radius:8px; padding:12px 14px; }
+  .detail-stat-num { font-size:24px; font-weight:700; font-family:'DM Mono',monospace; }
+  .detail-stat-label { font-size:11px; color:var(--muted); margin-top:2px; }
+  .detail-sig { border:1px solid var(--border); border-radius:6px; width:100%; margin-top:8px; }
+  .detail-items { margin-top:12px; }
+  .detail-item-row { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px; }
+  .detail-item-row:last-child { border-bottom:none; }
+  .detail-item-no { width:24px; color:var(--muted); flex-shrink:0; font-family:'DM Mono',monospace; }
+  .detail-item-name { flex:1; font-weight:500; }
+  .detail-item-result { flex-shrink:0; }
+  .detail-abnormal-info { font-size:12px; color:var(--muted); margin-top:4px; line-height:1.6; }
+
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
@@ -445,6 +460,23 @@
   </div>
 </div>
 
+<!-- 明細 Modal -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-head">
+      <h3 id="detail-modal-title">檢查明細</h3>
+      <button class="modal-close" onclick="closeModal('detail-modal')">×</button>
+    </div>
+    <div class="modal-body" id="detail-modal-body">
+      <div style="text-align:center;padding:30px;color:var(--muted)">載入中...</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('detail-modal')">關閉</button>
+      <button class="btn btn-danger btn-sm" id="detail-delete-btn" onclick="deleteInspection()">刪除此記錄</button>
+    </div>
+  </div>
+</div>
+
 <!-- 簽名 Modal -->
 <div class="modal-overlay" id="sig-modal">
   <div class="modal">
@@ -458,14 +490,15 @@
   </div>
 </div>
 
-<!-- 品項新增 Modal -->
+<!-- 品項新增/編輯 Modal -->
 <div class="modal-overlay" id="item-modal">
   <div class="modal">
     <div class="modal-head">
-      <h3>新增品項</h3>
+      <h3 id="item-modal-title">新增品項</h3>
       <button class="modal-close" onclick="closeModal('item-modal')">×</button>
     </div>
     <div class="modal-body">
+      <input type="hidden" id="modal-item-id">
       <div class="form-group"><label>項次 *</label><input type="number" id="modal-item-no" min="1"></div>
       <div class="form-group"><label>名稱 *</label><input type="text" id="modal-item-name"></div>
       <div class="form-group"><label>基本數量 *</label><input type="text" id="modal-item-qty"></div>
@@ -475,6 +508,52 @@
     <div class="modal-foot">
       <button class="btn btn-outline" onclick="closeModal('item-modal')">取消</button>
       <button class="btn btn-primary" onclick="saveItem()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 改密碼 Modal -->
+<div class="modal-overlay" id="changepw-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>修改密碼：<span id="changepw-username"></span></h3>
+      <button class="modal-close" onclick="closeModal('changepw-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="changepw-id">
+      <div class="form-group">
+        <label>新密碼 *（至少8位）</label>
+        <input type="password" id="changepw-new" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label>確認新密碼 *</label>
+        <input type="password" id="changepw-confirm" placeholder="••••••••">
+      </div>
+      <div id="changepw-alert" class="alert"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('changepw-modal')">取消</button>
+      <button class="btn btn-primary" onclick="doChangePw()">確認修改</button>
+    </div>
+  </div>
+</div>
+
+<!-- 保健箱編輯 Modal -->
+<div class="modal-overlay" id="box-edit-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>編輯保健箱</h3>
+      <button class="modal-close" onclick="closeModal('box-edit-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-box-id">
+      <div class="form-group"><label>名稱 *</label><input type="text" id="edit-box-name"></div>
+      <div class="form-group"><label>地點說明</label><input type="text" id="edit-box-location"></div>
+      <div class="form-group"><label>管理人</label><input type="text" id="edit-box-manager"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline" onclick="closeModal('box-edit-modal')">取消</button>
+      <button class="btn btn-primary" onclick="saveBoxEdit()">儲存</button>
     </div>
   </div>
 </div>
@@ -687,7 +766,8 @@ async function loadBoxesList() {
       <td>${escHtml(b.manager_name || '-')}</td>
       <td><span class="badge ${b.is_active ? 'badge-green' : 'badge-gray'}">${b.is_active ? '啟用' : '停用'}</span></td>
       <td>
-        <button class="btn btn-outline btn-sm" onclick="toggleBox('${b.id}', ${b.is_active})">${b.is_active ? '停用' : '啟用'}</button>
+        <button class="btn btn-outline btn-sm" onclick="openBoxEditModal('${b.id}','${(b.name||'').replace(/'/g,'')}','${(b.location||'').replace(/'/g,'')}','${(b.manager_name||'').replace(/'/g,'')}')">編輯</button>
+        <button class="btn btn-outline btn-sm" onclick="toggleBox('${b.id}', ${b.is_active})" style="margin-left:4px">${b.is_active ? '停用' : '啟用'}</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -709,6 +789,27 @@ async function addBox() {
 
 async function toggleBox(id, isActive) {
   await dbFetch(`boxes?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ is_active: !isActive }) });
+  loadBoxesList();
+}
+
+function openBoxEditModal(id, name, location, manager) {
+  document.getElementById('edit-box-id').value = id;
+  document.getElementById('edit-box-name').value = name;
+  document.getElementById('edit-box-location').value = location;
+  document.getElementById('edit-box-manager').value = manager;
+  document.getElementById('box-edit-modal').classList.add('open');
+}
+
+async function saveBoxEdit() {
+  const id = document.getElementById('edit-box-id').value;
+  const name = document.getElementById('edit-box-name').value.trim();
+  const location = document.getElementById('edit-box-location').value.trim();
+  const manager = document.getElementById('edit-box-manager').value.trim();
+  if (!name) { alert('請填寫保健箱名稱'); return; }
+  await dbFetch(`boxes?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({
+    name, location: location || null, manager_name: manager || null
+  })});
+  closeModal('box-edit-modal');
   loadBoxesList();
 }
 
@@ -747,7 +848,7 @@ async function loadItemsAdmin(boxId) {
         ${item.expiry_date ? `<span class="badge ${isExpiringSoon(item.expiry_date) ? 'badge-red' : 'badge-green'}">${item.expiry_date}</span>` : '-'}
       </td>
       <td>
-        <button class="btn btn-outline btn-sm" onclick="editExpiry('${item.id}', '${item.expiry_date || ''}')">設定期限</button>
+        <button class="btn btn-outline btn-sm" onclick="openEditItemModal('${item.id}','${item.item_no}','${(item.name||'').replace(/'/g,'')}','${(item.base_quantity||'').replace(/'/g,'')}','${item.expiry_date||''}','${(item.expiry_notes||'').replace(/'/g,'')}')">編輯</button>
         <button class="btn btn-danger btn-sm" onclick="deleteItem('${item.id}')" style="margin-left:4px">刪除</button>
       </td>
     `;
@@ -762,6 +863,8 @@ function isExpiringSoon(dateStr) {
 }
 
 function openAddItemModal() {
+  document.getElementById('modal-item-id').value = '';
+  document.getElementById('item-modal-title').textContent = '新增品項';
   document.getElementById('modal-item-no').value = '';
   document.getElementById('modal-item-name').value = '';
   document.getElementById('modal-item-qty').value = '';
@@ -770,7 +873,19 @@ function openAddItemModal() {
   document.getElementById('item-modal').classList.add('open');
 }
 
+function openEditItemModal(id, no, name, qty, expiry, notes) {
+  document.getElementById('modal-item-id').value = id;
+  document.getElementById('item-modal-title').textContent = '編輯品項';
+  document.getElementById('modal-item-no').value = no;
+  document.getElementById('modal-item-name').value = name;
+  document.getElementById('modal-item-qty').value = qty;
+  document.getElementById('modal-item-expiry').value = expiry;
+  document.getElementById('modal-item-expiry-notes').value = notes;
+  document.getElementById('item-modal').classList.add('open');
+}
+
 async function saveItem() {
+  const itemId = document.getElementById('modal-item-id').value;
   const no = parseInt(document.getElementById('modal-item-no').value);
   const name = document.getElementById('modal-item-name').value.trim();
   const qty = document.getElementById('modal-item-qty').value.trim();
@@ -779,10 +894,17 @@ async function saveItem() {
 
   if (!no || !name || !qty) { alert('請填寫必要欄位'); return; }
 
-  await dbFetch('items', { method: 'POST', body: JSON.stringify({
-    box_id: currentAdminBoxId, item_no: no, name, base_quantity: qty,
-    expiry_date: expiry || null, expiry_notes: notes || null, sort_order: no
-  })});
+  if (itemId) {
+    await dbFetch(`items?id=eq.${itemId}`, { method: 'PATCH', body: JSON.stringify({
+      item_no: no, name, base_quantity: qty,
+      expiry_date: expiry || null, expiry_notes: notes || null, sort_order: no
+    })});
+  } else {
+    await dbFetch('items', { method: 'POST', body: JSON.stringify({
+      box_id: currentAdminBoxId, item_no: no, name, base_quantity: qty,
+      expiry_date: expiry || null, expiry_notes: notes || null, sort_order: no
+    })});
+  }
   closeModal('item-modal');
   loadItemsAdmin(currentAdminBoxId);
 }
@@ -814,8 +936,9 @@ async function loadUsers() {
       <td>${escHtml(u.display_name || '-')}</td>
       <td style="font-size:12px;color:var(--muted)">${u.last_login ? new Date(u.last_login).toLocaleString('zh-TW') : '從未登入'}</td>
       <td><span class="badge ${u.is_active ? 'badge-green' : 'badge-gray'}">${u.is_active ? '啟用' : '停用'}</span></td>
-      <td>
-        ${u.id !== currentAdmin.id ? `<button class="btn btn-outline btn-sm" onclick="toggleUser('${u.id}', ${u.is_active})">${u.is_active ? '停用' : '啟用'}</button>` : '<span style="font-size:12px;color:var(--muted)">（自己）</span>'}
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" onclick="openChangePwModal('${u.id}', '${escHtml(u.username)}')">改密碼</button>
+        ${u.id !== currentAdmin.id ? `<button class="btn btn-outline btn-sm" onclick="toggleUser('${u.id}', ${u.is_active})">${u.is_active ? '停用' : '啟用'}</button>` : ''}
       </td>
     `;
     tbody.appendChild(tr);
@@ -858,6 +981,37 @@ function showUserAlert(msg, type) {
 async function toggleUser(id, isActive) {
   await dbFetch(`admins?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ is_active: !isActive }) });
   loadUsers();
+}
+
+function openChangePwModal(id, username) {
+  document.getElementById('changepw-id').value = id;
+  document.getElementById('changepw-username').textContent = username;
+  document.getElementById('changepw-new').value = '';
+  document.getElementById('changepw-confirm').value = '';
+  document.getElementById('changepw-alert').className = 'alert';
+  document.getElementById('changepw-modal').classList.add('open');
+}
+
+async function doChangePw() {
+  const id = document.getElementById('changepw-id').value;
+  const pw = document.getElementById('changepw-new').value;
+  const pw2 = document.getElementById('changepw-confirm').value;
+  const alertEl = document.getElementById('changepw-alert');
+
+  if (!pw) { alertEl.textContent = '請輸入新密碼'; alertEl.className = 'alert alert-error show'; return; }
+  if (pw.length < 8) { alertEl.textContent = '密碼至少需要8位'; alertEl.className = 'alert alert-error show'; return; }
+  if (pw !== pw2) { alertEl.textContent = '兩次密碼不一致'; alertEl.className = 'alert alert-error show'; return; }
+
+  try {
+    const hash = await hashPassword(pw);
+    await dbFetch(`admins?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ password_hash: hash }) });
+    alertEl.textContent = '密碼修改成功！';
+    alertEl.className = 'alert alert-success show';
+    setTimeout(() => closeModal('changepw-modal'), 1500);
+  } catch(e) {
+    alertEl.textContent = '修改失敗：' + e.message;
+    alertEl.className = 'alert alert-error show';
+  }
 }
 
 // ============================================================
@@ -1022,8 +1176,75 @@ function viewSig(data) {
   document.getElementById('sig-modal-img').src = data;
   document.getElementById('sig-modal').classList.add('open');
 }
-function viewDetail(id) {
-  window.open(`detail.html?id=${id}`, '_blank');
+let currentDetailId = null;
+
+async function viewDetail(id) {
+  currentDetailId = id;
+  document.getElementById('detail-modal-body').innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">載入中...</div>';
+  document.getElementById('detail-modal').classList.add('open');
+
+  try {
+    const [insp] = await dbFetch(`inspections?id=eq.${id}&select=id,inspection_date,submitted_at,notes,signature_data,boxes(name)`);
+    const items = await dbFetch(`inspection_items?inspection_id=eq.${id}&order=item_name`);
+    const abnormal = items.filter(i => i.result === 'abnormal');
+
+    document.getElementById('detail-modal-title').textContent = `${insp.boxes?.name || ''} ／ ${insp.inspection_date} 檢查明細`;
+
+    const itemsHtml = items.map(i => `
+      <div class="detail-item-row">
+        <div class="detail-item-no">${escHtml(i.item_name.replace(/[^0-9]/g,'').substring(0,2) || '')}</div>
+        <div style="flex:1">
+          <div class="detail-item-name">${escHtml(i.item_name)}</div>
+          ${i.result === 'abnormal' ? `
+            <div class="detail-abnormal-info">
+              ${i.actual_quantity ? `實際數量：${escHtml(i.actual_quantity)}　` : ''}
+              ${i.updated_item ? `更換品項：${escHtml(i.updated_item)}　` : ''}
+              ${i.new_expiry_date ? `新有效期：${i.new_expiry_date}　` : ''}
+              ${i.abnormal_notes ? `說明：${escHtml(i.abnormal_notes)}` : ''}
+            </div>
+          ` : ''}
+        </div>
+        <div class="detail-item-result">
+          <span class="badge ${i.result === 'normal' ? 'badge-green' : 'badge-red'}">${i.result === 'normal' ? '✔ 正常' : '✘ 異常'}</span>
+        </div>
+      </div>
+    `).join('');
+
+    document.getElementById('detail-modal-body').innerHTML = `
+      <div class="detail-header">
+        <div class="detail-stat">
+          <div class="detail-stat-num">${items.length}</div>
+          <div class="detail-stat-label">檢查品項總數</div>
+        </div>
+        <div class="detail-stat">
+          <div class="detail-stat-num" style="color:${abnormal.length > 0 ? 'var(--accent)' : 'var(--green)'}">${abnormal.length}</div>
+          <div class="detail-stat-label">異常品項數</div>
+        </div>
+        <div class="detail-stat">
+          <div class="detail-stat-num" style="font-size:13px">${insp.submitted_at ? new Date(insp.submitted_at).toLocaleString('zh-TW') : '-'}</div>
+          <div class="detail-stat-label">填寫時間</div>
+        </div>
+      </div>
+      ${insp.notes ? `<div style="background:var(--bg);border-radius:6px;padding:10px 14px;font-size:13px;margin-bottom:12px;color:var(--muted)">備註：${escHtml(insp.notes)}</div>` : ''}
+      ${insp.signature_data ? `<div style="margin-bottom:12px"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">檢查人簽名</div><img class="detail-sig" src="${insp.signature_data}" alt="簽名"></div>` : ''}
+      <div class="detail-items">${itemsHtml}</div>
+    `;
+  } catch(e) {
+    document.getElementById('detail-modal-body').innerHTML = `<div style="color:var(--accent);padding:20px">載入失敗：${e.message}</div>`;
+  }
+}
+
+async function deleteInspection() {
+  if (!currentDetailId) return;
+  if (!confirm('確定要刪除這筆檢查記錄？此操作無法復原。')) return;
+  try {
+    await dbFetch(`inspection_items?inspection_id=eq.${currentDetailId}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+    await dbFetch(`inspections?id=eq.${currentDetailId}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+    closeModal('detail-modal');
+    loadRecords();
+  } catch(e) {
+    alert('刪除失敗：' + e.message);
+  }
 }
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
