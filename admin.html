@@ -54,6 +54,12 @@
   }
   .btn-login:hover { background: #263448; }
   #login-error { color: var(--accent); font-size: 13px; margin-top: 10px; display: none; }
+  .forgot-link { font-size: 12px; color: var(--accent2); text-align: center; margin-top: 12px; cursor: pointer; text-decoration: underline; display: block; }
+  .forgot-link:hover { opacity: 0.8; }
+  .forgot-box { display: none; margin-top: 16px; padding: 14px; background: #EBF5FB; border-radius: 8px; border-left: 3px solid var(--accent2); }
+  .forgot-box p { font-size: 12px; color: #1A5276; line-height: 1.7; margin-bottom: 10px; }
+  .forgot-box code { display: block; background: #1a2332; color: #AAFFAA; padding: 10px 12px; border-radius: 6px; font-size: 11px; font-family: 'Courier New', monospace; word-break: break-all; line-height: 1.6; margin: 6px 0; }
+  .forgot-close { font-size: 12px; color: var(--muted); cursor: pointer; text-decoration: underline; }
 
   /* ── 後台主體 ── */
   #admin-screen { display: none; }
@@ -221,6 +227,13 @@
     <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
     <button class="btn-login" onclick="doLogin()">登入</button>
     <div id="login-error">帳號或密碼錯誤，請再試一次。</div>
+    <span class="forgot-link" onclick="toggleForgot()">忘記密碼？</span>
+    <div class="forgot-box" id="forgot-box">
+      <p>請到 <strong>Supabase Dashboard → SQL Editor</strong> 執行以下指令重設密碼為 <strong>password</strong>：</p>
+      <code>UPDATE admins SET password_hash = '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8' WHERE username = 'admin';</code>
+      <p>執行後用帳號 <strong>admin</strong> / 密碼 <strong>password</strong> 登入，再至「管理員帳號」修改密碼。</p>
+      <p><a href="https://supabase.com/dashboard" target="_blank" style="color:var(--accent2);font-size:12px">→ 前往 Supabase Dashboard</a>　　<span class="forgot-close" onclick="toggleForgot()">收起</span></p>
+    </div>
   </div>
 </div>
 
@@ -639,6 +652,11 @@ async function doLogin() {
 document.getElementById('login-pass').addEventListener('keypress', e => {
   if (e.key === 'Enter') doLogin();
 });
+
+function toggleForgot() {
+  const box = document.getElementById('forgot-box');
+  box.style.display = box.style.display === 'block' ? 'none' : 'block';
+}
 
 function doLogout() {
   currentAdmin = null;
