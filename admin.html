@@ -259,6 +259,8 @@
       <div class="nav-item" onclick="showTab('items')">品項管理</div>
       <div class="nav-section">使用者</div>
       <div class="nav-item" onclick="showTab('users')">管理員帳號</div>
+      <div class="nav-section">報表分析</div>
+      <div class="nav-item" onclick="showTab('replenish')">補充清單</div>
       <div class="nav-section">資料匯入</div>
       <div class="nav-item" onclick="showTab('import')">批次匯入</div>
     </div>
@@ -430,6 +432,66 @@
             <table class="data-table">
               <thead><tr><th>帳號</th><th>顯示名稱</th><th>最後登入</th><th>狀態</th><th>操作</th></tr></thead>
               <tbody id="users-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 補充清單 -->
+      <div id="tab-replenish" class="tab-page">
+        <div class="page-title">補充清單</div>
+        <div class="page-sub">需要補充或即將過期的品項一覽</div>
+
+        <div class="card">
+          <div class="card-head">
+            <h3>篩選條件</h3>
+          </div>
+          <div class="card-body" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+            <div class="form-group" style="margin:0;min-width:200px">
+              <label>保健箱</label>
+              <select id="rep-box-filter" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-family:'Noto Sans TC',sans-serif;width:100%">
+                <option value="">全部</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>到期警示天數</label>
+              <select id="rep-days-filter" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:14px;font-family:'Noto Sans TC',sans-serif">
+                <option value="30">30 天內</option>
+                <option value="60">60 天內</option>
+                <option value="90">90 天內</option>
+                <option value="0">僅顯示已過期</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="loadReplenish()">查詢</button>
+            <button class="btn btn-outline" onclick="exportReplenish()">匯出 CSV</button>
+          </div>
+        </div>
+
+        <!-- 統計卡 -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:20px" id="rep-stats">
+          <div class="stat-card"><div class="stat-num" id="rep-stat-expired" style="color:var(--accent)">-</div><div class="stat-label">已過期品項</div></div>
+          <div class="stat-card"><div class="stat-num" id="rep-stat-soon" style="color:#E67E22">-</div><div class="stat-label">即將到期（30天內）</div></div>
+          <div class="stat-card"><div class="stat-num" id="rep-stat-abnormal">-</div><div class="stat-label">最近一次異常回報</div></div>
+        </div>
+
+        <!-- 過期/即將到期品項 -->
+        <div class="card">
+          <div class="card-head"><h3>⚠️ 有效期限警示</h3></div>
+          <div class="card-body" style="padding:0;overflow-x:auto">
+            <table class="data-table">
+              <thead><tr><th>保健箱</th><th>品項名稱</th><th>基本數量</th><th>有效期限</th><th>狀態</th></tr></thead>
+              <tbody id="rep-expiry-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">請點「查詢」載入資料</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 最近異常回報 -->
+        <div class="card">
+          <div class="card-head"><h3>🔴 最近異常回報品項</h3></div>
+          <div class="card-body" style="padding:0;overflow-x:auto">
+            <table class="data-table">
+              <thead><tr><th>保健箱</th><th>檢查日期</th><th>品項名稱</th><th>實際數量</th><th>更換品項</th><th>異常說明</th></tr></thead>
+              <tbody id="rep-abnormal-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">請點「查詢」載入資料</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -679,6 +741,7 @@ function showTab(name) {
   if (name === 'boxes') loadBoxesList();
   if (name === 'items') loadBoxesForItems();
   if (name === 'users') loadUsers();
+  if (name === 'replenish') { loadReplenishBoxes(); loadReplenish(); }
 }
 
 // ============================================================
@@ -1184,6 +1247,100 @@ async function exportRecords() {
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
   a.download = `保健箱記錄_${month || 'all'}.csv`;
+  a.click();
+}
+
+// ============================================================
+// 補充清單
+// ============================================================
+async function loadReplenishBoxes() {
+  const boxes = await dbFetch('boxes?is_active=eq.true');
+  const sel = document.getElementById('rep-box-filter');
+  if (sel.options.length <= 1) {
+    boxes.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.name;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+async function loadReplenish() {
+  const boxId = document.getElementById('rep-box-filter').value;
+  const days = parseInt(document.getElementById('rep-days-filter').value);
+  const today = new Date();
+  const limitDate = new Date();
+  limitDate.setDate(today.getDate() + (days === 0 ? 0 : days));
+  const todayStr = today.toISOString().split('T')[0];
+  const limitStr = limitDate.toISOString().split('T')[0];
+
+  // ── 有效期限警示 ──
+  let itemQuery = 'items?is_active=eq.true&expiry_date=not.is.null&order=expiry_date';
+  if (boxId) itemQuery += `&box_id=eq.${boxId}`;
+  if (days === 0) itemQuery += `&expiry_date=lt.${todayStr}`;
+  else itemQuery += `&expiry_date=lte.${limitStr}`;
+
+  const expiryItems = await dbFetch(itemQuery + '&select=id,name,base_quantity,expiry_date,box_id,boxes(name)');
+  const expired = expiryItems.filter(i => i.expiry_date < todayStr);
+  const soon = expiryItems.filter(i => i.expiry_date >= todayStr);
+
+  document.getElementById('rep-stat-expired').textContent = expired.length;
+  document.getElementById('rep-stat-soon').textContent = soon.length;
+
+  const expiryTbody = document.getElementById('rep-expiry-tbody');
+  if (expiryItems.length === 0) {
+    expiryTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">無到期或即將到期品項 ✅</td></tr>';
+  } else {
+    expiryTbody.innerHTML = expiryItems.map(i => {
+      const isExpired = i.expiry_date < todayStr;
+      const daysLeft = Math.ceil((new Date(i.expiry_date) - today) / (1000*60*60*24));
+      return `<tr>
+        <td><strong>${escHtml(i.boxes?.name || '-')}</strong></td>
+        <td>${escHtml(i.name)}</td>
+        <td style="color:var(--muted);font-size:12px">${escHtml(i.base_quantity)}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:13px">${i.expiry_date}</td>
+        <td>${isExpired
+          ? '<span class="badge badge-red">已過期</span>'
+          : `<span class="badge" style="background:#FEF3E2;color:#B7570A">剩 ${daysLeft} 天</span>`
+        }</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ── 最近異常回報 ──
+  let abnQuery = 'inspection_items?result=eq.abnormal&order=inspection_id.desc&limit=50&select=item_name,actual_quantity,updated_item,abnormal_notes,inspection_id,inspections(inspection_date,box_id,boxes(name))';
+  const abnItems = await dbFetch(abnQuery);
+  const filtered = boxId ? abnItems.filter(i => i.inspections?.box_id === boxId) : abnItems;
+
+  document.getElementById('rep-stat-abnormal').textContent = filtered.length;
+
+  const abnTbody = document.getElementById('rep-abnormal-tbody');
+  if (filtered.length === 0) {
+    abnTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">無異常回報記錄 ✅</td></tr>';
+  } else {
+    abnTbody.innerHTML = filtered.map(i => `<tr>
+      <td><strong>${escHtml(i.inspections?.boxes?.name || '-')}</strong></td>
+      <td style="font-size:12px">${i.inspections?.inspection_date || '-'}</td>
+      <td>${escHtml(i.item_name)}</td>
+      <td style="color:var(--accent);font-weight:500">${escHtml(i.actual_quantity || '-')}</td>
+      <td>${escHtml(i.updated_item || '-')}</td>
+      <td style="font-size:12px;color:var(--muted)">${escHtml(i.abnormal_notes || '-')}</td>
+    </tr>`).join('');
+  }
+}
+
+async function exportReplenish() {
+  const rows = [['保健箱','品項名稱','基本數量','有效期限','狀態']];
+  document.querySelectorAll('#rep-expiry-tbody tr').forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length >= 5) rows.push([...tds].map(td => td.textContent.trim()));
+  });
+  const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('
+');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `補充清單_${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
 }
 
