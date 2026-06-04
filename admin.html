@@ -686,28 +686,38 @@ async function doLogin() {
   const pass = document.getElementById('login-pass').value;
   document.getElementById('login-error').style.display = 'none';
 
+  const loginBtn = document.getElementById('login-btn') || document.querySelector('.btn-login');
+  if (loginBtn) { loginBtn.textContent = '登入中...'; loginBtn.disabled = true; }
+
   try {
     const rows = await dbFetch(`admins?username=eq.${encodeURIComponent(user)}&is_active=eq.true`);
-    if (!rows || rows.length === 0) throw new Error('not found');
+    if (!rows || rows.length === 0) throw new Error('帳號不存在或已停用');
 
     const admin = rows[0];
     const inputHash = await hashPassword(pass);
     const ok = admin.password_hash === inputHash;
-    if (!ok) throw new Error('wrong password');
+    if (!ok) throw new Error('密碼錯誤');
 
-    // 更新最後登入
-    await dbFetch(`admins?id=eq.${admin.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ last_login: new Date().toISOString() })
-    });
+    // 更新最後登入（失敗不影響登入）
+    try {
+      await dbFetch(`admins?id=eq.${admin.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ last_login: new Date().toISOString() })
+      });
+    } catch(e) { console.warn('last_login update failed:', e); }
 
     currentAdmin = admin;
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('admin-screen').style.display = 'block';
     document.getElementById('topbar-username').textContent = admin.display_name || admin.username;
     initAdmin();
-  } catch {
-    document.getElementById('login-error').style.display = 'block';
+  } catch(err) {
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '帳號或密碼錯誤，請再試一次。';
+    errEl.style.display = 'block';
+    console.error('Login error:', err.message);
+  } finally {
+    if (loginBtn) { loginBtn.textContent = '登入'; loginBtn.disabled = false; }
   }
 }
 
