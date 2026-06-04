@@ -662,7 +662,8 @@ function apiHeaders(useService = false) {
     'apikey': key,
     'Authorization': 'Bearer ' + key,
     'Content-Type': 'application/json',
-    'Prefer': 'return=representation'
+    'Prefer': 'return=representation',
+    'X-Client-Info': 'healthbox/1.0'
   };
 }
 
@@ -1342,15 +1343,16 @@ async function loadReplenish() {
 
 async function exportReplenish() {
   const rows = [['保健箱','品項名稱','基本數量','有效期限','狀態']];
-  document.querySelectorAll('#rep-expiry-tbody tr').forEach(tr => {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length >= 5) rows.push([...tds].map(td => td.textContent.trim()));
+  document.querySelectorAll('#rep-expiry-tbody tr').forEach(function(tr) {
+    var tds = tr.querySelectorAll('td');
+    if (tds.length >= 5) rows.push(Array.from(tds).map(function(td) { return td.textContent.trim(); }));
   });
-  const csv = '﻿' + rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('
-');
-  const a = document.createElement('a');
+  var csv = '\uFEFF' + rows.map(function(r) {
+    return r.map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\n');
+  var a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = `補充清單_${new Date().toISOString().split('T')[0]}.csv`;
+  a.download = 'replenish_' + new Date().toISOString().split('T')[0] + '.csv';
   a.click();
 }
 
