@@ -1,0 +1,23 @@
+name: Supabase Keep Alive
+
+# 每 3 天自動呼叫一次資料庫，避免 Supabase 免費方案閒置 7 天被暫停
+on:
+  schedule:
+    - cron: '0 2 */3 * *'   # UTC 02:00 = 台灣時間 10:00，每 3 天一次
+  workflow_dispatch:         # 允許在 Actions 頁面手動執行（測試用）
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://zxeqkfjydtsuzcfudfla.supabase.co/rest/v1/boxes?select=id&limit=1" \
+            -H "apikey: sb_publishable_2VzPxIRYzBnk5Ebx8SaYzA_y5PjWxeh" \
+            -H "Authorization: Bearer sb_publishable_2VzPxIRYzBnk5Ebx8SaYzA_y5PjWxeh")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "Supabase 回應異常，請檢查專案是否被暫停"
+            exit 1
+          fi
